@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main  # Trigger when a commit is merged into the main branch
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure all tags are fetched
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: echo "LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')" >> $GITHUB_ENV
+
+      - name: Determine new version
+        id: versioning
+        run: |
+          LATEST_TAG=${{ env.LATEST_TAG }}
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Get commit messages since last tag
+          COMMITS=$(git log --format=%s $LATEST_TAG..HEAD)
+
+          # Determine version bump based on commit messages
+          if echo "$COMMITS" | grep -q "^feat:"; then
+            ((MINOR+=1)); PATCH=0
+          elif echo "$COMMITS" | grep -q "^fix:"; then
+            ((PATCH+=1))
+          elif echo "$COMMITS" | grep -q "^BREAKING CHANGE:"; then
+            ((MAJOR+=1)); MINOR=0; PATCH=0
+          fi
+
+          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+      - name: Create and push new tag
+        if: env.NEW_TAG != env.LATEST_TAG
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ env.NEW_TAG }}
+          git push origin ${{ env.NEW_TAG }}
