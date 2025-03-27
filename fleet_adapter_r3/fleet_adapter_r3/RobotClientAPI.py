@@ -190,7 +190,7 @@ class RobotAPI:
             print(error)
 
         def on_close(wsc, close_status_code, close_msg):
-            print("### Status Websocket Connecton Closed ###")
+            print("### Status Websocket Connecton Closed ###!")
 
         def on_open(wsc):
             print("Opened Status Websocket Connection")
